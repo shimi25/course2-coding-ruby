@@ -1,1 +1,66 @@
-# assignment 4 solution
+# Written by Shimon bitton. Opsschool Student - JAN 2018.
+
+require 'rake'
+require 'open3'
+
+namespace :files do
+desc 'Rename YAML files to YML files using Rake'
+task :rename_yaml, [:filename] do |filename, args|
+  onlyfilename = File.basename ("#{args.filename}"), ".yaml" # ".yaml")
+  File.rename "#{onlyfilename}.yaml", "#{onlyfilename}.yml"
+ #FileUtils.mv ( , )
+ puts "#{onlyfilename} Renamed!"
+ end
+end
+
+
+# Calling the command "rake archive PATH=/home/user/my_archive EXCLUDE=.tmp,.bkp" will perform the following:
+#    1. Create a file "/home/user/my_archive/build/my_archive.tar.gz
+#    2. File will not include all files that end with .tmp & .bkp.
+
+namespace :files do
+desc 'Archive all files in folder with parameters (assignment4)'
+task :archive do
+
+  current_folder = File.basename(Dir.getwd)             # Gets the current directory names
+                                                        # Arguments passed by Environment Variables:
+  path    = ENV["PATH"] || "#{current_folder}"          # PATH is already defined as a OS $PATH  , so if i use the default value it won't use "." but the OS $PATH variables
+  exclude = ENV["EXCLUDE"]
+
+#  Dir.chdir (''"#{path}"'')
+
+  archive_name = current_folder.to_s.downcase.gsub!(/[!@$&#*~+.-]/,'_')     # Set the archive file name to be in lowercase letters and without any special characters and
+  backup_folder = "build"
+  Dir.mkdir(backup_folder) unless File.exist?(backup_folder)    # Creates a backup folder named 'build' if it's not exist
+
+  sh 'echo "" > /tmp/exclude_file.txt'                  # Creates an empty default exclude file
+
+  unless exclude.to_s.strip.empty?                    # Check if EXCULDE variable is not empty  , if not empty it will fill in the exclude file
+
+    exclude_array = exclude.to_s.split(",")           # Takes in EXCLUDE variables and put into an Array
+
+    File.open('/tmp/exclude_file.txt', 'w') do |f|    # Iterate over the array and write the values as lines in file that will be used by 'tar' to exculde file types
+         exclude_array.each do |ch|
+          f.write("*#{ch}\n")
+         end
+    end
+  end
+
+ command = "exec /bin/tar -czvf /tmp/#{archive_name}.tar.gz -X /tmp/exclude_file.txt #{path}"     # Writes the command into a string in order to use it in the Ruby 'exec' command
+  puts "#{command}"
+
+#  exec(command)               # Not working for some reason . ask Eyal why
+
+  Open3.popen3(command) do |stdin, stdout, stderr, wait_thr|
+    puts "Stdout is:" + stdout.read
+    puts " Stderr is:" + stderr.read
+  end
+  
+  puts "Cleanup.."                                           # This section is for deleting the temporary exculde file
+  File.delete ("/tmp/exclude_file.txt")
+   if $?.exitstatus > 0
+     puts "Tempfile deletion failed. It is not that important."
+   end
+
+ end
+end
